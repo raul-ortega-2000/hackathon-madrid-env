@@ -1,6 +1,7 @@
 # 🌍 Consulta Ambiental Madrid - DataHack4Good 2025
 
-Objetivo: Construir una plataforma móvil con geolocalización que muestra datos ambientales en tiempo real de sectores específicos de la Comunidad de Madrid usando datos públicos. Incluye chatbot de IA para consultas sobre impacto ecológico. Esta plataforma brindará una solución al problema de que es difícil saber cómo ayudar al medio ambiente con acciones concretas y medibles, más allá de consejos generales ya conocidos. El enfoque del hackathon será construir un prototipo de esta plataforma que permita a ciudadanos, turistas, empresas y gobierno consultar datos públicos ambientales relevantes, y obtener recomendaciones para acciones con impacto ambiental positivo.
+## Objetivo: 
+-> Construir una plataforma móvil con geolocalización que muestra datos ambientales en tiempo real de sectores específicos de la Comunidad de Madrid usando datos públicos. Incluye simulación de chatbot de IA para consultas y recomendaciones personalizadas sobre impacto ecológico. Esta plataforma brindará una solución al problema de que es difícil saber cómo ayudar al medio ambiente con acciones concretas y medibles, más allá de consejos generales ya conocidos. El enfoque del hackathon será construir un prototipo de esta plataforma que permita a ciudadanos, turistas, empresas y gobierno consultar datos públicos ambientales relevantes, y obtener recomendaciones para acciones con impacto ambiental positivo.
 
 ## 🎯 Características Principales
 

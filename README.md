@@ -264,9 +264,10 @@ Obtiene estadísticas agregadas por distrito
 
 MIT License - Proyecto Hackathon 2025
 
-## 👥 Autor
+## 👥 Autores
 
-Raúl Ortega - r.ortega@prodware.es
+- **Raúl Ortega** - r.ortega@prodware.es
+- **Emiliano Sigales Gómez** - emilianosigalesgomez@gmail.com
 
 ## 🤝 Contribuir
 

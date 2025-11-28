@@ -1,8 +1,6 @@
 const { app } = require('@azure/functions');
 const axios = require('axios');
-
-// API de datos de Madrid
-const MADRID_API = 'https://datos.madrid.es/egob/catalogo/212531-7916318-calidad-aire-tiempo-real.json';
+const dataSources = require('../dataSources');
 
 // Función para calcular distancia entre dos puntos (Haversine)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -22,7 +20,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 // Función para determinar nivel de calidad del aire
 function getAirQualityLevel(no2, pm10, pm25) {
-  // Índice simplificado basado en estándares EPA
+  // Índice simplificado basado en estándares EPA y normativa europea
   if (no2 > 200 || pm10 > 100 || pm25 > 55) {
     return { level: 'Mala', color: '#ff0000' };
   } else if (no2 > 100 || pm10 > 50 || pm25 > 35) {
@@ -30,6 +28,17 @@ function getAirQualityLevel(no2, pm10, pm25) {
   } else {
     return { level: 'Buena', color: '#00e400' };
   }
+}
+
+// Función para calcular Air Quality Index (AQI) simplificado
+function calculateAQI(no2, pm10, pm25, o3) {
+  // Calcular AQI basado en el peor contaminante
+  const aqiNo2 = no2 > 200 ? 300 : no2 > 100 ? 200 : no2 > 50 ? 100 : 50;
+  const aqiPm10 = pm10 > 100 ? 300 : pm10 > 50 ? 200 : pm10 > 25 ? 100 : 50;
+  const aqiPm25 = pm25 > 55 ? 300 : pm25 > 35 ? 200 : pm25 > 15 ? 100 : 50;
+  const aqiO3 = o3 > 180 ? 300 : o3 > 120 ? 200 : o3 > 60 ? 100 : 50;
+  
+  return Math.max(aqiNo2, aqiPm10, aqiPm25, aqiO3);
 }
 
 app.http('getAirQuality', {
@@ -51,9 +60,23 @@ app.http('getAirQuality', {
         };
       }
 
-      // Obtener datos de la API de Madrid
-      const response = await axios.get(MADRID_API);
-      const stations = response.data['@graph'];
+      // Obtener datos de múltiples fuentes de Madrid
+      // Primary source: Real-time air quality data
+      const response = await axios.get(dataSources.airQuality.realTime, {
+        timeout: 10000
+      });
+      const stations = response.data['@graph'] || [];
+      
+      // Try to get additional station metadata if available
+      let stationMetadata = [];
+      try {
+        const metadataResponse = await axios.get(dataSources.airQuality.stations, {
+          timeout: 5000
+        });
+        stationMetadata = metadataResponse.data['@graph'] || [];
+      } catch (err) {
+        context.log('Could not fetch station metadata, using real-time data only');
+      }
 
       // Encontrar la estación más cercana
       let closestStation = null;
@@ -83,11 +106,19 @@ app.http('getAirQuality', {
         };
       }
 
-      // Extraer valores de contaminantes
-      const no2 = closestStation.NO2 || 0;
-      const pm10 = closestStation.PM10 || 0;
-      const pm25 = closestStation.PM2_5 || 0;
-      const o3 = closestStation.O3 || 0;
+      // Extraer valores de contaminantes (múltiples fuentes)
+      const no2 = closestStation.NO2 || closestStation.no2 || 0;
+      const pm10 = closestStation.PM10 || closestStation.pm10 || 0;
+      const pm25 = closestStation.PM2_5 || closestStation.pm25 || closestStation['PM2.5'] || 0;
+      const o3 = closestStation.O3 || closestStation.o3 || 0;
+      const so2 = closestStation.SO2 || closestStation.so2 || 0;
+      const co = closestStation.CO || closestStation.co || 0;
+      
+      // Enriquecer con metadata de estación si está disponible
+      const stationInfo = stationMetadata.find(s => 
+        s.title === closestStation.title || 
+        s.id === closestStation.id
+      );
 
       const qualityLevel = getAirQualityLevel(no2, pm10, pm25);
 
@@ -106,18 +137,28 @@ app.http('getAirQuality', {
         jsonBody: {
           location: { lat, lon },
           station: {
-            name: closestStation.title,
-            distance: Math.round(minDistance)
+            name: closestStation.title || 'Estación de Calidad del Aire',
+            id: closestStation.id,
+            distance: Math.round(minDistance),
+            address: stationInfo?.address?.['street-address'] || closestStation.address || 'N/A',
+            coordinates: {
+              lat: parseFloat(closestStation.latitud || closestStation.latitude),
+              lon: parseFloat(closestStation.longitud || closestStation.longitude)
+            }
           },
           airQuality: {
             NO2: no2,
             PM10: pm10,
             PM2_5: pm25,
             O3: o3,
+            SO2: so2,
+            CO: co,
             level: qualityLevel.level,
-            color: qualityLevel.color
+            color: qualityLevel.color,
+            aqi: calculateAQI(no2, pm10, pm25, o3) // Air Quality Index
           },
           recommendation,
+          dataSource: 'datos.madrid.es - Calidad del Aire en Tiempo Real',
           timestamp: new Date().toISOString()
         }
       };

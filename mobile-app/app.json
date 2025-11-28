@@ -1,52 +1,30 @@
 {
   "expo": {
-    "name": "Madrid Ambiental",
-    "slug": "madrid-ambiental",
+    "name": "mobile-app",
+    "slug": "mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#4CAF50"
+      "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.madridambiental.app",
-      "config": {
-        "googleMapsApiKey": ""
-      }
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#4CAF50"
+        "backgroundColor": "#ffffff"
       },
-      "package": "com.madridambiental.app",
-      "config": {
-        "googleMaps": {
-          "apiKey": ""
-        }
-      },
-      "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
-      ]
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Permitir que Madrid Ambiental acceda a tu ubicación para mostrarte datos ambientales de tu zona."
-        }
-      ]
-    ]
+    }
   }
 }

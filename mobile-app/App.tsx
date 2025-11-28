@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { StatusBar } from 'expo-status-bar';
 import { apiService, AirQualityData, RecyclingPoint, Recommendation } from './services/api';
@@ -26,7 +25,6 @@ export default function App() {
         let location = await Location.getCurrentPositionAsync({});
         setLocation(location);
         
-        // Cargar datos
         await loadData(location.coords.latitude, location.coords.longitude);
       } catch (error) {
         setErrorMsg('Error al obtener ubicación');
@@ -67,7 +65,7 @@ export default function App() {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>Cargando datos ambientales...</Text>
+        <Text style={styles.loadingText}>🌿 Cargando Madrid Ambiental...</Text>
       </View>
     );
   }
@@ -76,6 +74,7 @@ export default function App() {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>❌ {errorMsg || 'Error al obtener ubicación'}</Text>
+        <Text style={styles.errorSubtext}>Por favor, permite el acceso a la ubicación</Text>
       </View>
     );
   }
@@ -84,63 +83,26 @@ export default function App() {
     <View style={styles.container}>
       <StatusBar style="light" />
       
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>🌿 Madrid Ambiental</Text>
         <Text style={styles.headerSubtitle}>Datos en tiempo real</Text>
+        <Text style={styles.locationText}>
+          📍 {location.coords.latitude.toFixed(4)}, {location.coords.longitude.toFixed(4)}
+        </Text>
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Mapa */}
-        <View style={styles.mapContainer}>
-          <MapView
-            style={styles.map}
-            provider={PROVIDER_GOOGLE}
-            initialRegion={{
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              latitudeDelta: 0.02,
-              longitudeDelta: 0.02,
-            }}
-          >
-            {/* Ubicación actual */}
-            <Marker
-              coordinate={{
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-              }}
-              title="Tu ubicación"
-              pinColor="blue"
-            />
-
-            {/* Puntos de reciclaje */}
-            {recyclingPoints.map((point) => (
-              <Marker
-                key={point.id}
-                coordinate={{
-                  latitude: point.latitude,
-                  longitude: point.longitude,
-                }}
-                title={point.name}
-                description={point.type}
-                pinColor="green"
-              />
-            ))}
-          </MapView>
-        </View>
-
-        {/* Calidad del Aire */}
         {airQuality && (
           <View style={[styles.card, { borderLeftColor: getQualityColor(airQuality.quality.level) }]}>
             <Text style={styles.cardTitle}>🌡️ Calidad del Aire</Text>
-            <View style={styles.qualityBadge} backgroundColor={getQualityColor(airQuality.quality.level)}>
+            <View style={[styles.qualityBadge, { backgroundColor: getQualityColor(airQuality.quality.level) }]}>
               <Text style={styles.qualityText}>{airQuality.quality.level.toUpperCase()}</Text>
             </View>
             <Text style={styles.cardSubtitle}>{airQuality.station}</Text>
-            <Text style={styles.distance}>📍 {airQuality.distance.toFixed(2)} km</Text>
+            <Text style={styles.distance}>📍 {airQuality.distance.toFixed(2)} km de distancia</Text>
             
             <View style={styles.pollutants}>
-              {Object.entries(airQuality.pollutants).map(([key, data]) => (
+              {Object.entries(airQuality.pollutants).map(([key, data]: [string, any]) => (
                 <View key={key} style={styles.pollutant}>
                   <Text style={styles.pollutantName}>{key}</Text>
                   <Text style={styles.pollutantValue}>{data.value} {data.unit}</Text>
@@ -150,7 +112,6 @@ export default function App() {
           </View>
         )}
 
-        {/* Recomendaciones */}
         {recommendations.length > 0 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>💡 Recomendaciones</Text>
@@ -166,7 +127,6 @@ export default function App() {
           </View>
         )}
 
-        {/* Puntos de Reciclaje */}
         {recyclingPoints.length > 0 && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>♻️ Puntos de Reciclaje Cercanos</Text>
@@ -174,19 +134,26 @@ export default function App() {
               <View key={point.id} style={styles.recyclingPoint}>
                 <Text style={styles.pointName}>{point.name}</Text>
                 <Text style={styles.pointAddress}>{point.address}</Text>
-                <Text style={styles.pointDistance}>📍 {point.distance.toFixed(0)}m</Text>
+                <Text style={styles.pointDistance}>📍 {point.distance.toFixed(0)}m de distancia</Text>
               </View>
             ))}
+            {recyclingPoints.length > 5 && (
+              <Text style={styles.moreText}>+{recyclingPoints.length - 5} puntos más</Text>
+            )}
           </View>
         )}
 
-        {/* Refresh Button */}
         <TouchableOpacity 
           style={styles.refreshButton}
-          onPress={() => loadData(location.coords.latitude, location.coords.longitude)}
+          onPress={() => location && loadData(location.coords.latitude, location.coords.longitude)}
         >
           <Text style={styles.refreshText}>🔄 Actualizar Datos</Text>
         </TouchableOpacity>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Datos de datos.madrid.es</Text>
+          <Text style={styles.footerText}>Hackathon Madrid 2025</Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -202,17 +169,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
+    padding: 20,
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 18,
+    color: '#4CAF50',
+    fontWeight: 'bold',
   },
   errorText: {
-    fontSize: 18,
+    fontSize: 20,
     color: '#f44336',
     textAlign: 'center',
-    padding: 20,
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
   header: {
     backgroundColor: '#4CAF50',
@@ -220,26 +194,21 @@ const styles = StyleSheet.create({
     paddingTop: 50,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: 'white',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 16,
     color: 'rgba(255,255,255,0.9)',
     marginTop: 4,
   },
+  locationText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 8,
+  },
   content: {
-    flex: 1,
-  },
-  mapContainer: {
-    height: 250,
-    margin: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 4,
-  },
-  map: {
     flex: 1,
   },
   card: {
@@ -251,9 +220,13 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#4CAF50',
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 12,
     color: '#333',
@@ -278,7 +251,7 @@ const styles = StyleSheet.create({
   qualityText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 16,
   },
   pollutants: {
     flexDirection: 'row',
@@ -287,11 +260,11 @@ const styles = StyleSheet.create({
   },
   pollutant: {
     backgroundColor: '#f5f5f5',
-    padding: 8,
+    padding: 10,
     borderRadius: 8,
     marginRight: 8,
     marginBottom: 8,
-    minWidth: 80,
+    minWidth: 85,
   },
   pollutantName: {
     fontSize: 12,
@@ -299,7 +272,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   pollutantValue: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#333',
     marginTop: 4,
   },
@@ -311,21 +284,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   recIcon: {
-    fontSize: 24,
+    fontSize: 28,
     marginRight: 12,
   },
   recContent: {
     flex: 1,
   },
   recTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 4,
   },
   recDescription: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#666',
+    lineHeight: 18,
   },
   recyclingPoint: {
     borderBottomWidth: 1,
@@ -333,12 +307,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   pointName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
   },
   pointAddress: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#666',
     marginTop: 4,
   },
@@ -346,6 +320,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#4CAF50',
     marginTop: 4,
+    fontWeight: '600',
+  },
+  moreText: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 8,
   },
   refreshButton: {
     backgroundColor: '#4CAF50',
@@ -354,10 +335,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   refreshText: {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  footer: {
+    alignItems: 'center',
+    padding: 20,
+    paddingBottom: 40,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
   },
 });

@@ -245,8 +245,8 @@ app.http('getAirQuality', {
               // Token público de WAQI (rate limited pero funcional)
               const waqiToken = 'demo';  // TODO: Obtener token real en waqi.info
               
-              // Obtener estaciones cercanas a las coordenadas
-              const waqiResponse = await axios.get(`https://api.waqi.info/feed/geo:${lat};${lon}/`, {
+              // Buscar estación en Madrid específicamente
+              const waqiResponse = await axios.get(`https://api.waqi.info/feed/madrid/`, {
                 params: { token: waqiToken },
                 timeout: 5000,
                 headers: {
@@ -256,7 +256,7 @@ app.http('getAirQuality', {
               
               if (waqiResponse.data?.status === 'ok' && waqiResponse.data?.data) {
                 const waqiData = waqiResponse.data.data;
-                context.log(`WAQI fallback: Found station "${waqiData.city?.name}"`);
+                context.log(`WAQI fallback: Found station "${waqiData.city?.name}" (Madrid)`);
                 
                 // Convertir formato WAQI a formato compatible
                 const iaqi = waqiData.iaqi || {};
@@ -264,8 +264,8 @@ app.http('getAirQuality', {
                   '@graph': [{
                     title: waqiData.city?.name || 'Estación Madrid',
                     location: {
-                      latitude: waqiData.city?.geo?.[0] || lat,
-                      longitude: waqiData.city?.geo?.[1] || lon
+                      latitude: waqiData.city?.geo?.[0] || 40.4168,
+                      longitude: waqiData.city?.geo?.[1] || -3.7038
                     },
                     address: { 
                       'street-address': waqiData.city?.name || 'Madrid'

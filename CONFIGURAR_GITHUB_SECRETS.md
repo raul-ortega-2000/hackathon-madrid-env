@@ -12,7 +12,7 @@ Y agrega los siguientes secrets (Settings → Secrets and variables → Actions 
 
 ### 1. AZURE_CLIENT_ID
 ```
-26e16c4b-0afc-4dd6-8d23-45a97326447e
+c038b8c8-c0b6-4fbd-84ca-21272d9d3fd3
 ```
 
 ### 2. AZURE_TENANT_ID
@@ -71,7 +71,7 @@ sudo snap install gh
 gh auth login
 
 # Configurar secrets
-gh secret set AZURE_CLIENT_ID -b "26e16c4b-0afc-4dd6-8d23-45a97326447e" -R raul-ortega-2000/hackathon-madrid-env
+gh secret set AZURE_CLIENT_ID -b "c038b8c8-c0b6-4fbd-84ca-21272d9d3fd3" -R raul-ortega-2000/hackathon-madrid-env
 gh secret set AZURE_TENANT_ID -b "b5a68ec8-e110-4be5-b500-173db93ba29f" -R raul-ortega-2000/hackathon-madrid-env
 gh secret set AZURE_SUBSCRIPTION_ID -b "fb57430f-fe28-4ea8-afae-7d1297296376" -R raul-ortega-2000/hackathon-madrid-env
 gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN -b "51ff1e2bc195431900c5a21a7eda163fab4ecfa3c4d0c744ddaad19ed78b6fa103-18ace8ce-33dc-4e76-9a57-fe02937cc46500302320443bd103" -R raul-ortega-2000/hackathon-madrid-env

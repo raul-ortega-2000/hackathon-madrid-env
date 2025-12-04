@@ -5,7 +5,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://func-madrid-env-a
 
 export const getAirQuality = async (lat, lon) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/airquality`, {
+    const response = await axios.get(`${API_BASE_URL}/getAirQuality`, {
       params: { lat, lon }
     });
     return response.data;
@@ -17,7 +17,7 @@ export const getAirQuality = async (lat, lon) => {
 
 export const getRecyclingPoints = async (lat, lon, radius = 500) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/recycling`, {
+    const response = await axios.get(`${API_BASE_URL}/getRecyclingPoints`, {
       params: { lat, lon, radius }
     });
     return response.data;
@@ -29,7 +29,7 @@ export const getRecyclingPoints = async (lat, lon, radius = 500) => {
 
 export const getRecommendations = async (lat, lon) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/recommendations`, {
+    const response = await axios.get(`${API_BASE_URL}/getRecommendations`, {
       params: { lat, lon }
     });
     return response.data;
@@ -41,7 +41,7 @@ export const getRecommendations = async (lat, lon) => {
 
 export const getZoneStats = async (district) => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/zonestats`, {
+    const response = await axios.get(`${API_BASE_URL}/getZoneStats`, {
       params: { district }
     });
     return response.data;

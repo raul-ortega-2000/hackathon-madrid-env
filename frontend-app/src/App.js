@@ -66,7 +66,7 @@ function App() {
 
       <div className="container">
         {/* Sección de Calidad del Aire */}
-        {airQuality && (
+        {airQuality && !airQuality.notAvailable && (
           <div className="card air-quality-card">
             <h2>📊 Calidad del Aire</h2>
             <div className="air-quality-badge" style={{ backgroundColor: airQuality.airQuality.color }}>
@@ -94,6 +94,17 @@ function App() {
             <p className="station-info">
               Estación: {airQuality.station.name} ({airQuality.station.distance}m)
             </p>
+          </div>
+        )}
+
+        {/* Mensaje cuando no hay datos de calidad del aire */
+        {airQuality && airQuality.notAvailable && (
+          <div className="card air-quality-card">
+            <h2>📊 Calidad del Aire</h2>
+            <div className="no-data-message">
+              <p>⚠️ {airQuality.message}</p>
+              {airQuality.suggestion && <p className="suggestion">{airQuality.suggestion}</p>}
+            </div>
           </div>
         )}
 
@@ -130,10 +141,13 @@ function App() {
         )}
 
         {/* Sección de Puntos de Reciclaje */}
-        {recyclingPoints.length > 0 && (
+        {/* Sección de Puntos de Reciclaje - siempre visible */
+        {
           <div className="card recycling-card">
             <h2>♻️ Puntos de Reciclaje Cercanos</h2>
-            <p className="points-count">{recyclingPoints.length} puntos encontrados</p>
+            {recyclingPoints.length > 0 ? (
+              <>
+                <p className="points-count">{recyclingPoints.length} puntos encontrados</p>
             <div className="recycling-list">
               {recyclingPoints.slice(0, 5).map((point, index) => (
                 <div key={index} className="recycling-point">
@@ -164,7 +178,7 @@ function App() {
                     <p className="point-phone">📞 {point.phone}</p>
                   )}
                   {point.source && point.source !== 'mock' && (
-                    <p className="point-source" style={{fontSize: '0.75em', color: '#888'}}>Fuente: {point.source}</p>
+                  {point.source && (
                   )}
                 </div>
               ))}

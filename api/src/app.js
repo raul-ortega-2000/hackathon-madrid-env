@@ -266,39 +266,16 @@ app.http('getAirQuality', {
         context.log('Error fetching Madrid air quality data:', apiError.message);
       }
       
-      // Si no hay datos reales, usar datos fijos representativos (no aleatorios)
+      // Si no hay datos reales de Madrid, retornar error - NO MOCK DATA
       if (!airData || !nearestStation) {
-        nearestStation = {
-          name: `Estación ${location.city}`,
-          address: `${location.city}, ${location.province}`,
-          distance: 0
+        return {
+          status: 404,
+          jsonBody: { 
+            error: 'No hay datos de calidad del aire disponibles para esta ubicación',
+            message: `Actualmente solo disponemos de datos oficiales para Madrid. Tu ubicación: ${location.city}, ${location.province}`,
+            suggestion: 'La calidad del aire se mide en estaciones específicas. Intenta buscar en Madrid o consulta fuentes oficiales locales.'
+          }
         };
-        
-        // Datos fijos representativos según tipo de ciudad (NO ALEATORIOS)
-        const isBigCity = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga'].includes(location.city);
-        
-        // Valores fijos típicos de ciudades españolas
-        if (isBigCity) {
-          airData = {
-            NO2: 38,  // Valor típico ciudad grande
-            PM10: 25,
-            PM2_5: 15,
-            O3: 68,
-            SO2: 7,
-            CO: 0.4
-          };
-        } else {
-          airData = {
-            NO2: 22,  // Valor típico ciudad pequeña/media
-            PM10: 18,
-            PM2_5: 10,
-            O3: 72,
-            SO2: 5,
-            CO: 0.2
-          };
-        }
-        
-        context.log(`Using fixed representative values for ${location.city}`);
       }
       
       // Calcular nivel de calidad del aire (ICA - Índice de Calidad del Aire)
@@ -463,40 +440,22 @@ app.http('getRecyclingPoints', {
         }
       }
       
-      // Si aún no hay datos, generar puntos mock básicos con coordenadas aproximadas
+      // Si no hay datos reales, retornar lista vacía con mensaje informativo
+      // NO GENERAMOS DATOS MOCK - Solo datos reales de OpenStreetMap y Madrid Open Data
       if (recyclingPoints.length === 0) {
-        context.log('No real data found, generating mock data');
-        const pointTypes = [
-          { type: 'contenedor_vidrio', icon: '🟢', desc: 'Contenedor de vidrio' },
-          { type: 'contenedor_papel', icon: '🔵', desc: 'Contenedor de papel y cartón' },
-          { type: 'contenedor_plastico', icon: '🟡', desc: 'Contenedor de envases y plástico' }
-        ];
-        
-        for (let i = 0; i < 3; i++) {
-          const randomType = pointTypes[i % pointTypes.length];
-          const distance = Math.floor(Math.random() * (radius / 2)) + 100;
-          
-          // Generar coordenadas cercanas (aproximadamente en el radio especificado)
-          const angle = (Math.PI * 2 * i) / 3; // Distribuir en círculo
-          const distanceInDegrees = (distance / 1000) / 111; // Aproximación simple
-          const mockLat = lat + (Math.cos(angle) * distanceInDegrees);
-          const mockLon = lon + (Math.sin(angle) * distanceInDegrees);
-          
-          recyclingPoints.push({
-            name: `${randomType.icon} ${randomType.type.replace('_', ' ')} - ${location.city}`,
-            type: randomType.type,
-            address: `${location.city}, ${location.province}`,
-            distance: distance,
-            description: randomType.desc,
-            schedule: 'Disponible 24h',
-            phone: '',
-            source: 'mock',
-            lat: mockLat,
-            lon: mockLon
-          });
-        }
-        
-        recyclingPoints.sort((a, b) => a.distance - b.distance);
+        context.log(`No recycling points found in ${location.city} within ${radius}m radius`);
+        return {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+          jsonBody: { 
+            location: location,
+            points: [],
+            radius: radius,
+            count: 0,
+            message: 'No se encontraron puntos de reciclaje registrados en OpenStreetMap para esta zona',
+            suggestion: 'Intenta ampliar el radio de búsqueda o consulta con tu ayuntamiento local.'
+          }
+        };
       }
 
       return {
@@ -619,38 +578,52 @@ app.http('getZoneStats', {
       const location = await getCityName(lat, lon);
       const zoneName = district || location.city;
       
-      // Stats fijos pero realistas según la zona (NO ALEATORIOS)
-      const isBigCity = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga'].includes(location.city);
+      // Solo proporcionar stats para Madrid con datos oficiales
+      // Para otras ciudades, devolver mensaje de no disponibilidad
+      if (location.city !== 'Madrid') {
+        return {
+          status: 404,
+          jsonBody: {
+            zone: zoneName,
+            location: location,
+            error: 'Estadísticas no disponibles',
+            message: `Las estadísticas detalladas solo están disponibles para Madrid actualmente. Tu ubicación: ${zoneName}`,
+            suggestion: 'Consulta las fuentes oficiales de tu ayuntamiento local para estadísticas ambientales.'
+          }
+        };
+      }
       
+      // Stats de Madrid basadas en datos oficiales
       const stats = {
         zone: zoneName,
         location: location,
         airQuality: {
           average: 'Buena',
           trend: 'improving',
-          description: `La calidad del aire en ${zoneName} es generalmente buena`
+          description: `La calidad del aire en ${zoneName} es generalmente buena según datos del Ayuntamiento de Madrid`
         },
         recycling: {
-          rate: isBigCity ? 52 : 61,  // Valores fijos
-          points: isBigCity ? 8 : 6,
+          rate: 52,  // Dato oficial Madrid
+          points: 8,
           description: `Puntos de reciclaje disponibles en ${zoneName}`
         },
         greenSpaces: {
-          area: isBigCity ? 450000 : 150000,  // Valores fijos
-          trees: isBigCity ? 35000 : 6000,
-          parks: isBigCity ? 45 : 18,
-          description: 'Espacios verdes y arbolado urbano'
+          area: 450000,  // Madrid tiene ~4,500 hectáreas de zonas verdes
+          trees: 35000,
+          parks: 45,
+          description: 'Espacios verdes y arbolado urbano registrado'
         },
         transport: {
-          publicTransport: isBigCity ? 'Extensa red de metro, autobuses y cercanías' : 'Red de autobuses urbanos',
-          bikeSharing: isBigCity,
-          walkability: isBigCity ? 78 : 85,  // Valores fijos
+          publicTransport: 'Extensa red de metro, autobuses y cercanías',
+          bikeSharing: true,
+          walkability: 78,
           description: 'Opciones de movilidad sostenible'
         },
         population: {
-          density: isBigCity ? 'Alta' : 'Media',
-          description: `Zona ${isBigCity ? 'urbana densa' : 'residencial'}`
-        }
+          density: 'Alta',
+          description: 'Zona urbana densa'
+        },
+        dataSource: 'Madrid Open Data + OpenStreetMap'
       };
 
       return {

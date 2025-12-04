@@ -10,6 +10,14 @@ export const getAirQuality = async (lat, lon) => {
     });
     return response.data;
   } catch (error) {
+    // Si es 404, devolver objeto indicando no disponibilidad
+    if (error.response && error.response.status === 404) {
+      return {
+        notAvailable: true,
+        message: error.response.data.message || 'No hay datos disponibles para esta ubicación',
+        suggestion: error.response.data.suggestion
+      };
+    }
     console.error('Error fetching air quality:', error);
     throw error;
   }

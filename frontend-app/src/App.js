@@ -156,7 +156,6 @@ function App() {
           <h2>🗺️ Mapa</h2>
           <div className="map-placeholder">
             <p>📍 Ubicación: {location.lat.toFixed(4)}, {location.lon.toFixed(4)}</p>
-            <p>Para ver el mapa interactivo completo, instala react-leaflet</p>
             <button onClick={fetchAllData} className="refresh-btn">
               🔄 Actualizar Datos
             </button>

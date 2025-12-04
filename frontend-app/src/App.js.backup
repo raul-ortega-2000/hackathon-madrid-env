@@ -143,18 +143,9 @@ function App() {
                     </span>
                     <h4>{point.name}</h4>
                   </div>
-                  <p className="point-address">📍 {point.address}</p>
-                  <p className="point-distance">📏 {point.distance}m de distancia</p>
+                  <p className="point-address">{point.address}</p>
+                  <p className="point-distance">{point.distance}m de distancia</p>
                   {point.description && <p className="point-desc">{point.description}</p>}
-                  {point.type === 'punto_limpio' && point.schedule && point.schedule !== 'Horario no especificado' && (
-                    <p className="point-schedule">�� {point.schedule}</p>
-                  )}
-                  {point.type === 'punto_limpio' && point.phone && (
-                    <p className="point-phone">📞 {point.phone}</p>
-                  )}
-                  {point.source && point.source !== 'mock' && (
-                    <p className="point-source" style={{fontSize: '0.75em', color: '#888'}}>Fuente: {point.source}</p>
-                  )}
                 </div>
               ))}
             </div>

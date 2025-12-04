@@ -57,8 +57,8 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>🌍 Madrid Ambiental</h1>
-        <p>Datos ambientales en tiempo real de Madrid</p>
+        <h1>🌍 España Ambiental</h1>
+        <p>Datos medioambientales en tiempo real de España</p>
       </header>
 
       {loading && <div className="loading">Cargando datos...</div>}
@@ -166,7 +166,7 @@ function App() {
 
       <footer className="App-footer">
         <p>Datos de <a href="https://datos.madrid.es" target="_blank" rel="noopener noreferrer">datos.madrid.es</a></p>
-        <p>Hackathon 2025 - Madrid Ambiental</p>
+        <p>España Ambiental - Información medioambiental en tiempo real</p>
       </footer>
     </div>
   );

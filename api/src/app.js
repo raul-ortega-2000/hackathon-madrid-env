@@ -463,7 +463,7 @@ app.http('getRecyclingPoints', {
         }
       }
       
-      // Si aún no hay datos, generar puntos mock básicos
+      // Si aún no hay datos, generar puntos mock básicos con coordenadas aproximadas
       if (recyclingPoints.length === 0) {
         context.log('No real data found, generating mock data');
         const pointTypes = [
@@ -476,6 +476,12 @@ app.http('getRecyclingPoints', {
           const randomType = pointTypes[i % pointTypes.length];
           const distance = Math.floor(Math.random() * (radius / 2)) + 100;
           
+          // Generar coordenadas cercanas (aproximadamente en el radio especificado)
+          const angle = (Math.PI * 2 * i) / 3; // Distribuir en círculo
+          const distanceInDegrees = (distance / 1000) / 111; // Aproximación simple
+          const mockLat = lat + (Math.cos(angle) * distanceInDegrees);
+          const mockLon = lon + (Math.sin(angle) * distanceInDegrees);
+          
           recyclingPoints.push({
             name: `${randomType.icon} ${randomType.type.replace('_', ' ')} - ${location.city}`,
             type: randomType.type,
@@ -484,7 +490,9 @@ app.http('getRecyclingPoints', {
             description: randomType.desc,
             schedule: 'Disponible 24h',
             phone: '',
-            source: 'mock'
+            source: 'mock',
+            lat: mockLat,
+            lon: mockLon
           });
         }
         

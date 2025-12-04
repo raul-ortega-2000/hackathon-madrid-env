@@ -143,7 +143,18 @@ function App() {
                     </span>
                     <h4>{point.name}</h4>
                   </div>
-                  <p className="point-address">📍 {point.address}</p>
+                  {point.lat && point.lon ? (
+                    <p className="point-address">
+                      📍 <a 
+                        href={`https://www.google.com/maps?q=${point.lat},${point.lon}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{color: "#5469d4", textDecoration: "underline"}}
+                      >{point.address || "Ver en Google Maps"}</a>
+                    </p>
+                  ) : (
+                    <p className="point-address">📍 {point.address}</p>
+                  )}
                   <p className="point-distance">📏 {point.distance}m de distancia</p>
                   {point.description && <p className="point-desc">{point.description}</p>}
                   {point.type === 'punto_limpio' && point.schedule && point.schedule !== 'Horario no especificado' && (

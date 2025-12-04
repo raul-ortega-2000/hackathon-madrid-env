@@ -43,6 +43,112 @@ async function getCityName(lat, lon) {
   }
 }
 
+// Función para obtener puntos de reciclaje usando Overpass API (OpenStreetMap)
+async function getRecyclingPointsFromOSM(lat, lon, radius) {
+  try {
+    // Query Overpass QL para buscar puntos de reciclaje
+    const overpassQuery = `
+      [out:json][timeout:10];
+      (
+        node["amenity"="recycling"](around:${radius},${lat},${lon});
+        node["amenity"="waste_disposal"](around:${radius},${lat},${lon});
+        way["amenity"="recycling"](around:${radius},${lat},${lon});
+        way["amenity"="waste_disposal"](around:${radius},${lat},${lon});
+      );
+      out body;
+      >;
+      out skel qt;
+    `;
+
+    const response = await axios.post(
+      'https://overpass-api.de/api/interpreter',
+      overpassQuery,
+      {
+        headers: {
+          'Content-Type': 'text/plain',
+          'User-Agent': 'MadridEnvApp/1.0'
+        },
+        timeout: 10000
+      }
+    );
+
+    const points = [];
+    
+    if (response.data && response.data.elements) {
+      for (const element of response.data.elements) {
+        // Solo procesar nodos con coordenadas
+        if (element.type === 'node' && element.lat && element.lon) {
+          const distance = calculateDistance(lat, lon, element.lat, element.lon);
+          
+          // Determinar tipo de punto según tags de OSM
+          const tags = element.tags || {};
+          let pointType = 'contenedor';
+          let icon = '♻️';
+          let description = 'Punto de reciclaje';
+          
+          if (tags.recycling_type === 'centre' || tags.name?.toLowerCase().includes('punto limpio')) {
+            pointType = 'punto_limpio';
+            icon = '♻️';
+            description = 'Punto limpio - Acepta residuos voluminosos, electrónicos y peligrosos';
+          } else if (tags['recycling:glass'] === 'yes' || tags.colour === 'green') {
+            pointType = 'contenedor_vidrio';
+            icon = '🟢';
+            description = 'Contenedor de vidrio';
+          } else if (tags['recycling:paper'] === 'yes' || tags.colour === 'blue') {
+            pointType = 'contenedor_papel';
+            icon = '🔵';
+            description = 'Contenedor de papel y cartón';
+          } else if (tags['recycling:plastic'] === 'yes' || tags.colour === 'yellow') {
+            pointType = 'contenedor_plastico';
+            icon = '🟡';
+            description = 'Contenedor de envases y plástico';
+          } else if (tags['recycling:organic'] === 'yes' || tags.colour === 'brown') {
+            pointType = 'contenedor_organico';
+            icon = '🟤';
+            description = 'Contenedor de residuos orgánicos';
+          }
+          
+          // Construir nombre descriptivo
+          let name = tags.name || tags.operator || `${icon} ${pointType.replace('_', ' ')}`;
+          if (!tags.name && tags['addr:street']) {
+            name = `${icon} ${tags['addr:street']}`;
+          }
+          
+          // Construir dirección
+          let address = '';
+          if (tags['addr:street']) {
+            address = tags['addr:street'];
+            if (tags['addr:housenumber']) address = `${tags['addr:housenumber']} ${address}`;
+            if (tags['addr:city']) address = `${address}, ${tags['addr:city']}`;
+          } else if (tags['addr:city']) {
+            address = tags['addr:city'];
+          }
+          
+          points.push({
+            name: name,
+            type: pointType,
+            address: address || 'Ubicación en mapa',
+            distance: Math.round(distance),
+            description: description,
+            schedule: tags.opening_hours || tags.collection_times || 'Horario no especificado',
+            phone: tags.phone || tags['contact:phone'] || '',
+            source: 'OpenStreetMap',
+            osmId: element.id
+          });
+        }
+      }
+      
+      // Ordenar por distancia
+      points.sort((a, b) => a.distance - b.distance);
+    }
+    
+    return points;
+  } catch (error) {
+    console.error('Error fetching from Overpass API:', error.message);
+    return [];
+  }
+}
+
 // GET Air Quality
 app.http('getAirQuality', {
   methods: ['GET'],
@@ -204,54 +310,71 @@ app.http('getRecyclingPoints', {
       const location = await getCityName(lat, lon);
       let recyclingPoints = [];
       
-      // Intentar obtener puntos limpios de Madrid
-      try {
-        const response = await axios.get('https://datos.madrid.es/egob/catalogo/200284-0-puntos-limpios.json', {
-          timeout: 5000
-        });
-        
-        if (response.data && response.data['@graph']) {
-          const points = response.data['@graph'];
+      // Primero intentar obtener datos reales de OpenStreetMap (funciona para cualquier ciudad)
+      context.log(`Fetching recycling points from OSM for ${location.city}`);
+      recyclingPoints = await getRecyclingPointsFromOSM(lat, lon, radius);
+      
+      // Si OSM no devuelve suficientes resultados, intentar API de Madrid como fallback
+      if (recyclingPoints.length < 3 && location.city === 'Madrid') {
+        context.log('Complementing with Madrid Open Data');
+        try {
+          const response = await axios.get('https://datos.madrid.es/egob/catalogo/200284-0-puntos-limpios.json', {
+            timeout: 5000
+          });
           
-          for (const point of points) {
-            if (point.location && point.location.latitude && point.location.longitude) {
-              const distance = calculateDistance(
-                lat, lon,
-                point.location.latitude,
-                point.location.longitude
-              );
-              
-              if (distance <= radius) {
-                recyclingPoints.push({
-                  name: point.title || 'Punto Limpio',
-                  type: 'punto_limpio',
-                  address: point.address ? point.address['street-address'] : '',
-                  distance: Math.round(distance),
-                  description: point.description || 'Acepta residuos voluminosos, electrónicos y peligrosos',
-                  schedule: point.organization ? point.organization.schedule : 'Consultar horarios',
-                  phone: point.organization ? point.organization.telephone : ''
-                });
+          if (response.data && response.data['@graph']) {
+            const points = response.data['@graph'];
+            
+            for (const point of points) {
+              if (point.location && point.location.latitude && point.location.longitude) {
+                const distance = calculateDistance(
+                  lat, lon,
+                  point.location.latitude,
+                  point.location.longitude
+                );
+                
+                if (distance <= radius) {
+                  // Evitar duplicados por distancia
+                  const isDuplicate = recyclingPoints.some(p => 
+                    calculateDistance(point.location.latitude, point.location.longitude, 
+                                    parseFloat(p.lat || 0), parseFloat(p.lon || 0)) < 50
+                  );
+                  
+                  if (!isDuplicate) {
+                    recyclingPoints.push({
+                      name: point.title || 'Punto Limpio',
+                      type: 'punto_limpio',
+                      address: point.address ? point.address['street-address'] : '',
+                      distance: Math.round(distance),
+                      description: point.description || 'Acepta residuos voluminosos, electrónicos y peligrosos',
+                      schedule: point.organization ? point.organization.schedule : 'Consultar horarios',
+                      phone: point.organization ? point.organization.telephone : '',
+                      source: 'Madrid Open Data'
+                    });
+                  }
+                }
               }
             }
+            
+            recyclingPoints.sort((a, b) => a.distance - b.distance);
           }
+        } catch (apiError) {
+          context.log('Error fetching Madrid data:', apiError.message);
         }
-      } catch (apiError) {
-        context.log('Error fetching recycling points:', apiError.message);
       }
       
-      // Si no hay datos reales o estamos fuera de Madrid, generar puntos mock
+      // Si aún no hay datos, generar puntos mock básicos
       if (recyclingPoints.length === 0) {
+        context.log('No real data found, generating mock data');
         const pointTypes = [
-          { type: 'punto_limpio', icon: '♻️', desc: 'Acepta residuos electrónicos, muebles y productos peligrosos' },
           { type: 'contenedor_vidrio', icon: '🟢', desc: 'Contenedor de vidrio' },
           { type: 'contenedor_papel', icon: '🔵', desc: 'Contenedor de papel y cartón' },
-          { type: 'contenedor_plastico', icon: '🟡', desc: 'Contenedor de envases y plástico' },
-          { type: 'contenedor_organico', icon: '🟤', desc: 'Contenedor de residuos orgánicos' }
+          { type: 'contenedor_plastico', icon: '🟡', desc: 'Contenedor de envases y plástico' }
         ];
         
-        for (let i = 0; i < 5; i++) {
-          const randomType = pointTypes[Math.floor(Math.random() * pointTypes.length)];
-          const distance = Math.floor(Math.random() * radius);
+        for (let i = 0; i < 3; i++) {
+          const randomType = pointTypes[i % pointTypes.length];
+          const distance = Math.floor(Math.random() * (radius / 2)) + 100;
           
           recyclingPoints.push({
             name: `${randomType.icon} ${randomType.type.replace('_', ' ')} - ${location.city}`,
@@ -260,7 +383,8 @@ app.http('getRecyclingPoints', {
             distance: distance,
             description: randomType.desc,
             schedule: 'Disponible 24h',
-            phone: ''
+            phone: '',
+            source: 'mock'
           });
         }
         

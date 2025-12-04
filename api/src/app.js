@@ -28,7 +28,7 @@ async function getCityName(lat, lon) {
         addressdetails: 1
       },
       headers: {
-        'User-Agent': 'MadridEnvApp/1.0'
+        'User-Agent': 'EspañaAmbiental/1.0'
       }
     });
     
@@ -62,7 +62,7 @@ async function getRecyclingPointsFromOSM(lat, lon, radius) {
       {
         headers: {
           'Content-Type': 'text/plain',
-          'User-Agent': 'MadridEnvApp/1.0'
+          'User-Agent': 'EspañaAmbiental/1.0'
         },
         timeout: 15000
       }
@@ -129,7 +129,9 @@ async function getRecyclingPointsFromOSM(lat, lon, radius) {
             schedule: tags.opening_hours || tags.collection_times || 'Horario no especificado',
             phone: tags.phone || tags['contact:phone'] || '',
             source: 'OpenStreetMap',
-            osmId: element.id
+            osmId: element.id,
+            lat: element.lat,
+            lon: element.lon
           });
         }
       }
@@ -310,49 +312,85 @@ app.http('getRecyclingPoints', {
       context.log(`Fetching recycling points from OSM for ${location.city}`);
       recyclingPoints = await getRecyclingPointsFromOSM(lat, lon, radius);
       
-      // Si OSM no devuelve suficientes resultados, intentar API de Madrid como fallback
-      if (recyclingPoints.length < 3 && location.city === 'Madrid') {
-        context.log('Complementing with Madrid Open Data');
+      // Si estamos en Madrid, enriquecer puntos limpios con datos oficiales
+      if (location.city === 'Madrid') {
+        context.log('Enriching Madrid recycling points with official data');
         try {
           const response = await axios.get('https://datos.madrid.es/egob/catalogo/200284-0-puntos-limpios.json', {
             timeout: 5000
           });
           
           if (response.data && response.data['@graph']) {
-            const points = response.data['@graph'];
+            const madridPoints = response.data['@graph'];
             
-            for (const point of points) {
-              if (point.location && point.location.latitude && point.location.longitude) {
-                const distance = calculateDistance(
-                  lat, lon,
-                  point.location.latitude,
-                  point.location.longitude
-                );
-                
-                if (distance <= radius) {
-                  // Evitar duplicados por distancia
-                  const isDuplicate = recyclingPoints.some(p => 
-                    calculateDistance(point.location.latitude, point.location.longitude, 
-                                    parseFloat(p.lat || 0), parseFloat(p.lon || 0)) < 50
-                  );
-                  
-                  if (!isDuplicate) {
-                    recyclingPoints.push({
-                      name: point.title || 'Punto Limpio',
-                      type: 'punto_limpio',
-                      address: point.address ? point.address['street-address'] : '',
-                      distance: Math.round(distance),
-                      description: point.description || 'Acepta residuos voluminosos, electrónicos y peligrosos',
-                      schedule: point.organization ? point.organization.schedule : 'Consultar horarios',
-                      phone: point.organization ? point.organization.telephone : '',
-                      source: 'Madrid Open Data'
-                    });
+            // Enriquecer puntos limpios existentes de OSM con metadata de Madrid
+            for (let i = 0; i < recyclingPoints.length; i++) {
+              if (recyclingPoints[i].type === 'punto_limpio') {
+                // Buscar punto coincidente en datos de Madrid (por cercanía < 100m)
+                for (const madridPoint of madridPoints) {
+                  if (madridPoint.location && madridPoint.location.latitude && madridPoint.location.longitude) {
+                    const distance = calculateDistance(
+                      madridPoint.location.latitude,
+                      madridPoint.location.longitude,
+                      parseFloat(recyclingPoints[i].lat) || lat,
+                      parseFloat(recyclingPoints[i].lon) || lon
+                    );
+                    
+                    if (distance < 100) {
+                      // Enriquecer con datos oficiales
+                      recyclingPoints[i].name = madridPoint.title || recyclingPoints[i].name;
+                      recyclingPoints[i].address = madridPoint.address ? madridPoint.address['street-address'] : recyclingPoints[i].address;
+                      recyclingPoints[i].schedule = madridPoint.organization?.schedule || recyclingPoints[i].schedule;
+                      recyclingPoints[i].phone = madridPoint.organization?.telephone || recyclingPoints[i].phone;
+                      recyclingPoints[i].source = 'OpenStreetMap + Madrid Open Data';
+                      break;
+                    }
                   }
                 }
               }
             }
             
-            recyclingPoints.sort((a, b) => a.distance - b.distance);
+            // Si hay menos de 10 puntos OSM, añadir puntos limpios oficiales que falten
+            if (recyclingPoints.length < 10) {
+              for (const madridPoint of madridPoints) {
+                if (madridPoint.location && madridPoint.location.latitude && madridPoint.location.longitude) {
+                  const distance = calculateDistance(
+                    lat, lon,
+                    madridPoint.location.latitude,
+                    madridPoint.location.longitude
+                  );
+                  
+                  if (distance <= radius) {
+                    // Evitar duplicados por distancia
+                    const isDuplicate = recyclingPoints.some(p => 
+                      calculateDistance(
+                        madridPoint.location.latitude,
+                        madridPoint.location.longitude,
+                        parseFloat(p.lat) || lat,
+                        parseFloat(p.lon) || lon
+                      ) < 100
+                    );
+                    
+                    if (!isDuplicate) {
+                      recyclingPoints.push({
+                        name: madridPoint.title || 'Punto Limpio',
+                        type: 'punto_limpio',
+                        address: madridPoint.address ? madridPoint.address['street-address'] : 'Madrid',
+                        distance: Math.round(distance),
+                        description: madridPoint.description || 'Acepta residuos voluminosos, electrónicos y peligrosos',
+                        schedule: madridPoint.organization?.schedule || 'Consultar horarios',
+                        phone: madridPoint.organization?.telephone || '',
+                        source: 'Madrid Open Data',
+                        lat: madridPoint.location.latitude,
+                        lon: madridPoint.location.longitude
+                      });
+                    }
+                  }
+                }
+              }
+              
+              recyclingPoints.sort((a, b) => a.distance - b.distance);
+            }
           }
         } catch (apiError) {
           context.log('Error fetching Madrid data:', apiError.message);

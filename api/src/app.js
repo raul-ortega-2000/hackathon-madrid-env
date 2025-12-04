@@ -46,18 +46,14 @@ async function getCityName(lat, lon) {
 // Función para obtener puntos de reciclaje usando Overpass API (OpenStreetMap)
 async function getRecyclingPointsFromOSM(lat, lon, radius) {
   try {
-    // Query Overpass QL para buscar puntos de reciclaje
+    // Query Overpass QL para buscar puntos de reciclaje (más simple para evitar timeouts)
     const overpassQuery = `
-      [out:json][timeout:10];
+      [out:json][timeout:15];
       (
         node["amenity"="recycling"](around:${radius},${lat},${lon});
         node["amenity"="waste_disposal"](around:${radius},${lat},${lon});
-        way["amenity"="recycling"](around:${radius},${lat},${lon});
-        way["amenity"="waste_disposal"](around:${radius},${lat},${lon});
       );
       out body;
-      >;
-      out skel qt;
     `;
 
     const response = await axios.post(
@@ -68,7 +64,7 @@ async function getRecyclingPointsFromOSM(lat, lon, radius) {
           'Content-Type': 'text/plain',
           'User-Agent': 'MadridEnvApp/1.0'
         },
-        timeout: 10000
+        timeout: 15000
       }
     );
 

@@ -97,13 +97,17 @@ function App() {
           </div>
         )}
 
-        {/* Mensaje cuando no hay datos de calidad del aire */
+        {/* Mensaje cuando no hay datos de calidad del aire */}
         {airQuality && airQuality.notAvailable && (
           <div className="card air-quality-card">
             <h2>📊 Calidad del Aire</h2>
-            <div className="no-data-message">
-              <p>⚠️ {airQuality.message}</p>
-              {airQuality.suggestion && <p className="suggestion">{airQuality.suggestion}</p>}
+            <div className="no-data-message" style={{padding: '20px', textAlign: 'center'}}>
+              <p style={{fontSize: '16px', marginBottom: '10px'}}>⚠️ {airQuality.message}</p>
+              {airQuality.suggestion && (
+                <p className="suggestion" style={{fontSize: '14px', color: '#666'}}>
+                  {airQuality.suggestion}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -141,13 +145,10 @@ function App() {
         )}
 
         {/* Sección de Puntos de Reciclaje */}
-        {/* Sección de Puntos de Reciclaje - siempre visible */
-        {
+        {recyclingPoints.length > 0 && (
           <div className="card recycling-card">
             <h2>♻️ Puntos de Reciclaje Cercanos</h2>
-            {recyclingPoints.length > 0 ? (
-              <>
-                <p className="points-count">{recyclingPoints.length} puntos encontrados</p>
+            <p className="points-count">{recyclingPoints.length} puntos encontrados</p>
             <div className="recycling-list">
               {recyclingPoints.slice(0, 5).map((point, index) => (
                 <div key={index} className="recycling-point">
@@ -177,8 +178,8 @@ function App() {
                   {point.type === 'punto_limpio' && point.phone && (
                     <p className="point-phone">📞 {point.phone}</p>
                   )}
-                  {point.source && point.source !== 'mock' && (
                   {point.source && (
+                    <p className="point-source" style={{fontSize: '0.75em', color: '#888'}}>Fuente: {point.source}</p>
                   )}
                 </div>
               ))}

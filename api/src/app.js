@@ -200,6 +200,7 @@ app.http('getAirQuality', {
 
     try {
       const location = await getCityName(lat, lon);
+      context.log(`Detected city: ${location.city}, Province: ${location.province}`);
       
       // Intentar obtener datos reales de calidad del aire de Madrid
       let airData = null;
@@ -209,18 +210,30 @@ app.http('getAirQuality', {
       const now = Date.now();
       const useCache = cache.airQuality.data && (now - cache.airQuality.timestamp < cache.airQuality.ttl);
       
+      // Detectar Madrid de forma más flexible (incluyendo "Comunidad de Madrid")
+      const isMadrid = location.city === 'Madrid' || 
+                       location.city.includes('Madrid') || 
+                       location.province === 'Madrid' ||
+                       location.province === 'Comunidad de Madrid';
+      
+      context.log(`Is Madrid location: ${isMadrid}`);
+      
       try {
         let madridData;
         
-        if (location.city === 'Madrid' && useCache) {
+        if (isMadrid && useCache) {
           context.log('Using cached air quality data');
           madridData = cache.airQuality.data;
-        } else if (location.city === 'Madrid') {
+        } else if (isMadrid) {
           context.log('Fetching fresh air quality data from Madrid API');
           const response = await axios.get('https://datos.madrid.es/egob/catalogo/212531-7916318-calidad-aire-tiempo-real.json', {
-            timeout: 5000
+            timeout: 10000,
+            headers: {
+              'User-Agent': 'EspañaAmbiental/1.0'
+            }
           });
           madridData = response.data;
+          context.log(`Madrid API returned data: ${madridData ? 'YES' : 'NO'}`);
           
           // Guardar en cache
           cache.airQuality.data = madridData;
@@ -229,6 +242,7 @@ app.http('getAirQuality', {
         
         if (madridData && madridData['@graph']) {
           const stations = madridData['@graph'];
+          context.log(`Found ${stations.length} stations`);
           
           // Encontrar estación más cercana
           let minDistance = Infinity;
@@ -249,31 +263,45 @@ app.http('getAirQuality', {
                   distance: Math.round(distance)
                 };
                 
-                // Extraer datos de contaminantes (valores fijos para consistencia)
+                // Extraer datos de contaminantes - usar valores reales si existen
                 airData = {
-                  NO2: station.no2 || 35,
-                  PM10: station.pm10 || 28,
-                  PM2_5: station.pm25 || 18,
-                  O3: station.o3 || 65,
-                  SO2: station.so2 || 8,
-                  CO: station.co || 0.4
+                  NO2: station.no2 || station.NO2 || 35,
+                  PM10: station.pm10 || station.PM10 || 28,
+                  PM2_5: station.pm25 || station.PM2_5 || station['PM2.5'] || 18,
+                  O3: station.o3 || station.O3 || 65,
+                  SO2: station.so2 || station.SO2 || 8,
+                  CO: station.co || station.CO || 0.4
                 };
               }
             }
           }
+          
+          context.log(`Nearest station: ${nearestStation?.name}, Distance: ${nearestStation?.distance}m`);
+          context.log(`Air data found: ${airData ? 'YES' : 'NO'}`);
+        } else {
+          context.log('Madrid API response does not have @graph property');
         }
       } catch (apiError) {
         context.log('Error fetching Madrid air quality data:', apiError.message);
+        context.log('API Error details:', apiError.code, apiError.response?.status);
       }
       
       // Si no hay datos reales de Madrid, retornar error - NO MOCK DATA
       if (!airData || !nearestStation) {
+        context.log(`No air data available. isMadrid: ${isMadrid}, airData: ${!!airData}, station: ${!!nearestStation}`);
         return {
           status: 404,
           jsonBody: { 
             error: 'No hay datos de calidad del aire disponibles para esta ubicación',
-            message: `Actualmente solo disponemos de datos oficiales para Madrid. Tu ubicación: ${location.city}, ${location.province}`,
-            suggestion: 'La calidad del aire se mide en estaciones específicas. Intenta buscar en Madrid o consulta fuentes oficiales locales.'
+            message: isMadrid 
+              ? `No pudimos obtener datos de las estaciones de Madrid. La API puede estar temporalmente no disponible. Tu ubicación: ${location.city}, ${location.province}`
+              : `Actualmente solo disponemos de datos oficiales para Madrid. Tu ubicación: ${location.city}, ${location.province}`,
+            suggestion: 'La calidad del aire se mide en estaciones específicas. Intenta buscar en Madrid o consulta fuentes oficiales locales.',
+            debug: {
+              detectedCity: location.city,
+              detectedProvince: location.province,
+              isMadrid: isMadrid
+            }
           }
         };
       }

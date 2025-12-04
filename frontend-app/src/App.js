@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAirQuality, getRecyclingPoints, getRecommendations } from './services/api';
+import MapView from './MapView';
 import './App.css';
 
 // Componente principal
@@ -154,9 +155,9 @@ function App() {
         {/* Mapa Simple (placeholder) */}
         <div className="card map-card">
           <h2>🗺️ Mapa</h2>
-          <div className="map-placeholder">
-            <p>📍 Ubicación: {location.lat.toFixed(4)}, {location.lon.toFixed(4)}</p>
-            <button onClick={fetchAllData} className="refresh-btn">
+          <div className="map-content">
+            <MapView lat={location.lat} lon={location.lon} />
+            <button onClick={fetchAllData} className="refresh-btn" style={{ marginTop: "10px" }}>
               🔄 Actualizar Datos
             </button>
           </div>

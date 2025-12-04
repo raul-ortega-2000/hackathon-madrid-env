@@ -2,6 +2,7 @@
   "name": "madrid-env-api",
   "version": "1.0.0",
   "description": "Backend API for Madrid Environmental Data",
+  "main": "src/functions/index.js",
   "scripts": {
     "start": "func start",
     "test": "echo \"No tests yet\" && exit 0"
